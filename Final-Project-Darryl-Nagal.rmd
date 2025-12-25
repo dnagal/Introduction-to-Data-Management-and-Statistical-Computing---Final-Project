@@ -1,0 +1,233 @@
+---
+title: "Final_Project_Darryl_Nagal"
+author: "Darryl Nagal"
+date: "2025-11-09"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## Uploading the dataset for the final project
+```{r long-term-care-facility-staffing}
+long_term <- read.csv("~/Downloads/long-term-care-facility-staffing.csv")
+
+library("dplyr")
+```
+
+## Quick summary of the dataset and its structure 
+```{r}
+str(long_term)
+```
+
+## Dataset dimensions 
+```{r}
+dim(long_term)
+```
+
+## Checking if the dataset contains any missing values
+```{r}
+sum(is.na(long_term))
+```
+
+## Checking the normality of the distributions for the nursing staff roles of interest
+```{r}
+#NA productive hours histogram
+library(ggplot2) 
+
+ggplot(long_term, aes(x = PRDHR_NA)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 30) +
+  facet_wrap(~ TYPE_CNTRL, scales = "free_y") +
+  labs(
+    title = "NA Productivity Hours by Ownership Type",
+    x = "NA Productivity Hours",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+#LVN productive hours histogram
+ggplot(long_term, aes(x = PRDHR_LVN)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 30) +
+  facet_wrap(~ TYPE_CNTRL, scales = "free_y") +
+  labs(
+    title = "LVN Productivity Hours by Ownership Type",
+    x = "LVN Productivity Hours",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+#RN productive hours histogram
+ggplot(long_term, aes(x = PRDHR_RN)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 30) +
+  facet_wrap(~ TYPE_CNTRL, scales = "free_y") +
+  labs(
+    title = "RN Productivity Hours by Ownership Type",
+    x = "RN Productivity Hours",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+#Nurse Management productive hours histogram
+ggplot(long_term, aes(x = PRDHR_MGT)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 30) +
+  facet_wrap(~ TYPE_CNTRL, scales = "free_y") +
+  labs(
+    title = "Nurse Management Productivity Hours by Ownership Type",
+    x = "Nurse Management Productivity Hours",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+## Also evaluating normality by using QQ plots for each position
+```{r}
+#NA QQ plot
+ggplot(long_term, aes(sample = PRDHR_NA)) +
+  stat_qq(color = "skyblue") +
+  stat_qq_line(color = "red") +
+  facet_wrap(~ TYPE_CNTRL, scales = "free") +
+  labs(
+    title = "Q-Q Plot of NA Productivity Hours by Ownership Type",
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles"
+  ) +
+  theme_minimal()
+
+#LVN QQ plot
+ggplot(long_term, aes(sample = PRDHR_LVN)) +
+  stat_qq(color = "skyblue") +
+  stat_qq_line(color = "red") +
+  facet_wrap(~ TYPE_CNTRL, scales = "free") +
+  labs(
+    title = "Q-Q Plot of LVN Productivity Hours by Ownership Type",
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles"
+  ) +
+  theme_minimal()
+
+#RN QQ plot 
+ggplot(long_term, aes(sample = PRDHR_RN)) +
+  stat_qq(color = "skyblue") +
+  stat_qq_line(color = "red") +
+  facet_wrap(~ TYPE_CNTRL, scales = "free") +
+  labs(
+    title = "Q-Q Plot of RN Productivity Hours by Ownership Type",
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles"
+  ) +
+  theme_minimal()
+
+#MGT QQ plot
+ggplot(long_term, aes(sample = PRDHR_MGT)) +
+  stat_qq(color = "skyblue") +
+  stat_qq_line(color = "red") +
+  facet_wrap(~ TYPE_CNTRL, scales = "free") +
+  labs(
+    title = "Q-Q Plot of Nurse Management Productivity Hours by Ownership Type",
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles"
+  ) +
+  theme_minimal()
+```
+
+## Given that the distributions are skewed, we will see if any of the productive hours (NA, LVN, RN, and Nurse Management) are correlated using spearman's rank correlation 
+```{r}
+cor_matrix <- cor(long_term[, c("PRDHR_NA", "PRDHR_LVN", "PRDHR_RN", "PRDHR_MGT")],
+                  use = "pairwise.complete.obs",
+                  method = "spearman")
+
+cor_matrix
+```
+
+## Performing a KMO now that strong correlations were found
+```{r}
+library(psych)
+
+KMO(cor_matrix)
+```
+Results indicate that there is common variance for PCA to be performed given that the value is greater than 0.60
+
+## Principal Component Analysis for Staffing Structure 
+```{r}
+pca_result <- prcomp(long_term[, c("PRDHR_NA", "PRDHR_LVN", "PRDHR_RN", "PRDHR_MGT")],
+                     scale. = TRUE)
+
+library(ggfortify)
+autoplot(pca_result, data = long_term, color = 'TYPE_CNTRL')
+
+summary(pca_result)
+
+pca_result$rotation
+
+autoplot(pca_result, data = long_term, color = 'TYPE_CNTRL',
+         loadings = TRUE, loadings.label = TRUE)
+```
+
+## Checking the shape of the distribution for PC1 and PC2
+```{r}
+hist(pca_result$x[,1],
+     main = "Histogram of PC1",
+     xlab = "pca_result$x[,1]",
+     col = "skyblue")
+
+qqnorm(pca_result$x[,1]); qqline(pca_result$x[,1])
+
+hist(pca_result$x[,2],
+     main = "Histogram of PC2",
+     xlab = "pca_result$x[,2]",
+     col = "skyblue")
+
+qqnorm(pca_result$x[,2]); qqline(pca_result$x[,2])
+```
+
+## Performing a Kruskal-Wallis test on the PCA findings since the productivity  distributions for each nursing staff role are not normally distributed
+```{r}
+pca_result <- prcomp(long_term[, c("PRDHR_NA", "PRDHR_LVN", "PRDHR_RN", "PRDHR_MGT")], scale. = TRUE, center = TRUE)
+pca_scores <- as.data.frame(pca_result$x)
+
+pca_scores$ownership <- long_term$TYPE_CNTRL
+
+kruskal.test(PC1 ~ ownership, data = pca_scores)
+kruskal.test(PC2 ~ ownership, data = pca_scores)
+```
+
+## Post-hoc test as Kruskal-Wallis returned a significant value 
+```{r}
+pairwise_PC1 <- pairwise.wilcox.test(pca_scores$PC1, pca_scores$ownership, p.adjust.method = "bonferroni")
+pairwise_PC2 <- pairwise.wilcox.test(pca_scores$PC2, pca_scores$ownership, p.adjust.method = "bonferroni")
+
+pairwise_PC1
+pairwise_PC2
+```
+
+## PCA scores summary
+```{r}
+head(pca_result$x)
+
+aggregate(pca_result$x, by = list(ownership = pca_scores$ownership), mean)
+```
+Interpretation: 
+Government facilities in the dataset are more likely than  other ownership types to align with greater direct-care productive hours as indicated by PC1 (-0.15) (given that the loadings are negative). Government facilities also lean more toward management productivity given the PC2 value (-1.09). 
+
+Investor owned facilities are close to 0 for both PC1 and PC2, suggesting they are not management or direct-care intensive.
+
+Not-for-profit facilities had a positive PC1 (0.56) which suggests they likely have lower overall direct care productivity given that PC1 loads negatively (from right to left). They also have less of a management focus compared to investor owned facilities but not more than government facilities.  
+
+Takeaways: 
+
+- Government facilities tend to have higher productive hours in direct care services 
+
+- Government facilities also have higher management productive hours compared to the other ownership types
+
+- Investor owned facilities were quite balanced in terms of direct care and management productivity 
+
+- Not-for-profit facilities in the dataset have lower direct care productivity hours compared to other ownership types, but higher management focus than investor owned facilities
